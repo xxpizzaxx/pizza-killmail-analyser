@@ -1,37 +1,42 @@
 package moe.pizza.analyser
 
-import moe.pizza.zkapi.zkillboard.Killmail
 import moe.pizza.zkapi.WebsocketFeed
+import moe.pizza.zkapi.zkillboard.Killmail
 import org.slf4j.LoggerFactory
+import moe.pizza.sdeapi._
+import slick.jdbc.JdbcBackend.Database
 
 import scala.concurrent.duration._
 
-class SuperDetector(url: String) {
+class SuperDetector(url: String, db: DatabaseOps) {
 
   val logger = LoggerFactory.getLogger(classOf[SuperDetector])
 
-  val supers = Map(
-    22852L -> "Hel",
-    23913L -> "Nyx",
-    23919L -> "Aeon",
-    23917L -> "Wyvern",
-    3514L -> "Revenant",
-    23773L -> "Ragnarok",
-    671L -> "Erebus",
-    11567L -> "Avatar",
-    3764L -> "Leviathan"
-  )
+  val supers: Set[String] = Set("Hel", "Nyx", "Aeon", "Wyvern", "Revenant")
+  val titans: Set[String] = Set("Ragnarok", "Erebus", "Avatar", "Leviathan")
+  val combined = supers ++ titans
+
+  val targets = combined.map(name => (db.getTypeID(name).sync(), name)).toMap
 
   val client = WebsocketFeed.createClient(url, { kill: Killmail =>
 
-    if (supers.keySet contains kill.victim.shipTypeID) {
+    //logger.info("%s lost a %s in %s".format(kill.victim.characterName, db.getTypeName(kill.victim.shipTypeID).sync(), db.getSystemName(kill.solarSystemID.toInt).sync()))
+
+    if (targets.keySet contains kill.victim.shipTypeID.toInt) {
       // the person who died was in a super
-      logger.info("victim %s id %d died in a %s in %s".format(kill.victim.characterName, kill.victim.characterID, supers(kill.victim.shipTypeID), kill.solarSystemID))
+      val character = kill.victim.characterName
+      val lostshiptype = db.getTypeName(kill.victim.shipTypeID.toInt).sync()
+      val location = db.getSystemName(kill.solarSystemID.toInt).sync()
+      logger.info(s"$character lost a $lostshiptype in $location".format(character, lostshiptype, location))
     }
     kill.attackers.foreach { attacker =>
-      if(supers.keySet contains attacker.shipTypeID) {
+      if(targets.keySet contains attacker.shipTypeID.toInt) {
         // attacker was in a super
-        logger.info("%s id %d used a %s in %s".format(attacker.characterName, attacker.characterID, supers(attacker.shipTypeID), kill.solarSystemID))
+        val character = attacker.characterName
+        val usedship = db.getTypeName(attacker.shipTypeID.toInt).sync()
+        val target = db.getTypeName(kill.victim.shipTypeID.toInt).sync()
+        val location = db.getSystemName(kill.solarSystemID.toInt).sync()
+        logger.info(s"$character used a $usedship to kill a $target in $location")
       }
     }
   })
@@ -41,5 +46,6 @@ class SuperDetector(url: String) {
 }
 
 object SuperDetector extends App {
-  new SuperDetector("ws://ws.eve-kill.net/kills")
+  val db = Database.forURL("jdbc:mysql://localhost:3306/sde", "sde", "sde", driver = "com.mysql.jdbc.Driver")
+  new SuperDetector("ws://ws.eve-kill.net/kills", new DatabaseOps(db))
 }
