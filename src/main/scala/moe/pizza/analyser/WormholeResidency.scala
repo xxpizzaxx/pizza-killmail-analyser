@@ -13,6 +13,21 @@ import scala.collection.mutable
 /**
  * Created by Andi on 06/11/2015.
  */
+
+object WormholeResidency {
+  case class ResidencyModifier(corporationID: Long, modifier: Double)
+   def calculateResidencyModifiers(kill: Killmail, value: Int): Seq[ResidencyModifier] = {
+    val loss = ResidencyModifier(kill.victim.corporationID, 0-value)
+    val corpscores = kill.attackers.groupBy(_.corporationID).mapValues(_.size)
+    val totalcorpscores = corpscores.values.sum
+    val kills = corpscores.map { kv =>
+      val (corp, score) = kv
+      ResidencyModifier(corp, 100.toDouble*(score.toDouble/totalcorpscores.toDouble))
+    }
+    Seq(loss) ++ kills
+  }
+}
+
 class WormholeResidency(url: String, db: DatabaseOps) {
 
   /*
@@ -23,21 +38,28 @@ class WormholeResidency(url: String, db: DatabaseOps) {
   Kill using pos - 2 points
   kill - 1 point
    */
-  case class ResidencyModifier(corporationID: Long, modifier: Int)
 
   val logger = LoggerFactory.getLogger(classOf[SuperDetector])
 
+  // Towers
   val TOWER_GROUP = 478
-
-  val RESIDENCYOPS = new mutable.Queue[ResidencyModifier]
-
   val towers = db.getTypesbyMarketGroup(TOWER_GROUP)
   val towerids = towers.sync().map(_.typeid).toSet
 
+  // Pocos
+  val POCO_GROUP = 1410
+  val pocos = db.getTypesbyMarketGroup(POCO_GROUP)
+  val pocoids = pocos.sync().map(_.typeid).toSet
+
+
+
   def analyse(kill: Killmail) {
-    // if it's a pos that was killed
-    if (towerids contains kill.victim.shipTypeID.toInt) {
-      RESIDENCYOPS.enqueue(new ResidencyModifier(kill.victim.corporationID, -100))
+    kill match {
+      case k if towerids contains k.victim.shipTypeID.toInt =>
+        WormholeResidency.calculateResidencyModifiers(k, 100)
+      case k if pocoids contains k.victim.shipTypeID.toInt =>
+        WormholeResidency.calculateResidencyModifiers(k, 10)
+
     }
   }
 

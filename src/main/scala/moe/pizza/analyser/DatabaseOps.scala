@@ -32,7 +32,7 @@ class DatabaseOps(db: JdbcBackend.Database) {
 
   val invtypesbymarketgroupcache: Cache[Seq[Tables.Invtypes#TableElementType]] = LruCache()
   def getTypesbyMarketGroup(id: Int): Future[Seq[Tables.Invtypes#TableElementType]] = invtypesbymarketgroupcache(id) {
-    Tables.Invtypes.filter(_.marketgroupid === id).result.run(db)
+    Tables.Invtypes.filter(_.marketgroupid === id.toLong).result.run(db)
   }
 
   val typenamecache: Cache[String] = LruCache()
