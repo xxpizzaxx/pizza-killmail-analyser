@@ -23,6 +23,18 @@ class DatabaseOps(db: JdbcBackend.Database) {
     r2.map(_.get)
   }
 
+  val invtypescache: Cache[Tables.Invtypes#TableElementType] = LruCache()
+  def getType(id: Int): Future[Tables.Invtypes#TableElementType] = invtypescache(id) {
+    val r = Tables.Invtypes.filter(_.typeid === id).result.run(db)
+    val r2 = r.map(_.head)
+    r2
+  }
+
+  val invtypesbymarketgroupcache: Cache[Seq[Tables.Invtypes#TableElementType]] = LruCache()
+  def getTypesbyMarketGroup(id: Int): Future[Seq[Tables.Invtypes#TableElementType]] = invtypesbymarketgroupcache(id) {
+    Tables.Invtypes.filter(_.marketgroupid === id).result.run(db)
+  }
+
   val typenamecache: Cache[String] = LruCache()
   def getTypeName(id: Long): Future[String] = typenamecache(id) {
     val query = sql"select typeName from invTypes where typeID = $id".as[(String)]
