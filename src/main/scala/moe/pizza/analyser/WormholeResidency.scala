@@ -4,7 +4,8 @@ import moe.pizza.analyser.WormholeResidency.ResidencyModifier
 import moe.pizza.eveapi.EVEAPI
 import moe.pizza.zkapi.{ZKBRequest, WebsocketFeed}
 import moe.pizza.zkapi.zkillboard.Killmail
-import org.joda.time.DateTime
+import org.joda.time.{Days, DateTime}
+import org.joda.time.format.DateTimeFormatterBuilder
 import org.slf4j.LoggerFactory
 import moe.pizza.sdeapi._
 
@@ -19,7 +20,17 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object WormholeResidency {
   case class ResidencyModifier(corporationID: Long, modifier: Double)
-   def calculateResidencyModifiers(kill: Killmail, value: Int): Seq[ResidencyModifier] = {
+  val datetimeformat = new DateTimeFormatterBuilder()
+    .appendYear(4,4).appendLiteral("-").appendMonthOfYear(2).appendLiteral("-").appendDayOfMonth(2).appendLiteral(" ")
+    .appendHourOfDay(2).appendLiteral(":").appendMinuteOfHour(2).appendLiteral(":").appendSecondOfMinute(2).toFormatter
+
+  def calculateRelevancy(kill: Killmail): Double = {
+    val dt = datetimeformat.parseDateTime(kill.killTime)
+    val days = Days.daysBetween(dt, DateTime.now()).getDays
+    val normaliseddays = if (days < 1) 1 else days
+    1.0/normaliseddays.toFloat
+  }
+  def calculateResidencyModifiers(kill: Killmail, value: Int): Seq[ResidencyModifier] = {
     val loss = ResidencyModifier(kill.victim.corporationID, 0-value)
     val corpscores = kill.attackers.groupBy(_.corporationID).mapValues(_.size)
     val totalcorpscores = corpscores.values.sum
@@ -62,7 +73,8 @@ class WormholeResidency(db: DatabaseOps) {
         WormholeResidency.calculateResidencyModifiers(k, 100)
       case k if pocoids contains k.victim.shipTypeID.toInt =>
         WormholeResidency.calculateResidencyModifiers(k, 10)
-      case _ => Nil
+      case k =>
+        WormholeResidency.calculateResidencyModifiers(k, 1)
     }
   }
 
@@ -75,9 +87,11 @@ class WormholeResidency(db: DatabaseOps) {
     println("gathered %d killmails".format(killmails.size))
     val scores = killmails.flatMap(analyse).groupBy(_.corporationID).mapValues(_.map(_.modifier).sum).toList.sortBy(0-_._2)
     val affiliation = new EVEAPI().eve.CharacterAffiliation(scores.map(_._1.toString)).sync()
-    val namelookup = affiliation.get.result.map(r => (r.characterID.toLong, r.characterName)).toMap
-    scores.foreach { score =>
-      println("%s scored %f".format(namelookup.getOrElse(score._1, "Unknown"), score._2))
+    if (scores.nonEmpty) {
+      val namelookup = affiliation.get.result.map(r => (r.characterID.toLong, r.characterName)).toMap
+      scores.foreach { score =>
+        println("%s scored %f".format(namelookup.getOrElse(score._1, "Unknown"), score._2))
+      }
     }
   }
 
