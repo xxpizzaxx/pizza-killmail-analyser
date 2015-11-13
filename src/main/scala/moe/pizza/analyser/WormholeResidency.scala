@@ -19,7 +19,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
  */
 
 object WormholeResidency {
-  case class ResidencyModifier(corporationID: Long, modifier: Double)
+  case class ResidencyModifier(corporationID: Long, modifier: Double, relevancy: Double)
   val datetimeformat = new DateTimeFormatterBuilder()
     .appendYear(4,4).appendLiteral("-").appendMonthOfYear(2).appendLiteral("-").appendDayOfMonth(2).appendLiteral(" ")
     .appendHourOfDay(2).appendLiteral(":").appendMinuteOfHour(2).appendLiteral(":").appendSecondOfMinute(2).toFormatter
@@ -31,12 +31,13 @@ object WormholeResidency {
     1.0/normaliseddays.toFloat
   }
   def calculateResidencyModifiers(kill: Killmail, value: Int): Seq[ResidencyModifier] = {
-    val loss = ResidencyModifier(kill.victim.corporationID, 0-value)
+    val relevancy = calculateRelevancy(kill)
+    val loss = ResidencyModifier(kill.victim.corporationID, 0-value, relevancy)
     val corpscores = kill.attackers.groupBy(_.corporationID).mapValues(_.size)
     val totalcorpscores = corpscores.values.sum
     val kills = corpscores.map { kv =>
       val (corp, score) = kv
-      ResidencyModifier(corp, 100.toDouble*(score.toDouble/totalcorpscores.toDouble))
+      ResidencyModifier(corp, 100.toDouble*(score.toDouble/totalcorpscores.toDouble), relevancy)
     }
     Seq(loss) ++ kills
   }
@@ -85,7 +86,7 @@ class WormholeResidency(db: DatabaseOps) {
   def backfill(systemID: Long) = {
     val killmails = fetchKms(systemID)
     println("gathered %d killmails".format(killmails.size))
-    val scores = killmails.flatMap(analyse).groupBy(_.corporationID).mapValues(_.map(_.modifier).sum).toList.sortBy(0-_._2)
+    val scores = killmails.flatMap(analyse).groupBy(_.corporationID).mapValues(_.map(rm => rm.modifier * rm.relevancy).sum).toList.sortBy(0-_._2)
     val affiliation = new EVEAPI().eve.CharacterAffiliation(scores.map(_._1.toString)).sync()
     if (scores.nonEmpty) {
       val namelookup = affiliation.get.result.map(r => (r.characterID.toLong, r.characterName)).toMap
