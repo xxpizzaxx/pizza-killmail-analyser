@@ -37,7 +37,7 @@ object WormholeResidency {
     val totalcorpscores = corpscores.values.sum
     val kills = corpscores.map { kv =>
       val (corp, score) = kv
-      ResidencyModifier(corp, 100.toDouble*(score.toDouble/totalcorpscores.toDouble), relevancy)
+      ResidencyModifier(corp, value.toDouble*(score.toDouble/totalcorpscores.toDouble), relevancy)
     }
     Seq(loss) ++ kills
   }
@@ -45,7 +45,7 @@ object WormholeResidency {
 
 class WormholeResidency(db: DatabaseOps) {
 
-  val logger = LoggerFactory.getLogger(classOf[SuperDetector])
+  val logger = LoggerFactory.getLogger(classOf[WormholeResidency])
 
   // Towers
   val TOWER_GROUP = 478
