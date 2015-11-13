@@ -45,15 +45,6 @@ object WormholeResidency {
 
 class WormholeResidency(db: DatabaseOps) {
 
-  /*
-  POS - 100 points
-  POCO - 10 points
-  Capital - 5 points
-  exponential falloff from 100% at 30d to 0% at 90d
-  Kill using pos - 2 points
-  kill - 1 point
-   */
-
   val logger = LoggerFactory.getLogger(classOf[SuperDetector])
 
   // Towers
@@ -65,7 +56,6 @@ class WormholeResidency(db: DatabaseOps) {
   val POCO_GROUP = 1410
   val pocos = db.getTypesbyMarketGroup(POCO_GROUP)
   val pocoids = pocos.sync().map(_.typeid).toSet
-
 
 
   def analyse(kill: Killmail): Seq[ResidencyModifier] = {
