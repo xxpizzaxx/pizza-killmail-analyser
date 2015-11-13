@@ -1,5 +1,7 @@
 package moe.pizza.analyser
 
+import java.util.concurrent.Executors
+
 import moe.pizza.analyser.WormholeResidency.ResidencyModifier
 import moe.pizza.eveapi.EVEAPI
 import moe.pizza.zkapi.{ZKBRequest, WebsocketFeed}
@@ -9,10 +11,10 @@ import org.joda.time.format.DateTimeFormatterBuilder
 import org.slf4j.LoggerFactory
 import moe.pizza.sdeapi._
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.collection.mutable
 
-import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Created by Andi on 06/11/2015.
@@ -44,6 +46,9 @@ object WormholeResidency {
 }
 
 class WormholeResidency(db: DatabaseOps) {
+
+  val executorService = Executors.newFixedThreadPool(1000)
+  implicit val executionContext = ExecutionContext.fromExecutorService(executorService)
 
   val logger = LoggerFactory.getLogger(classOf[WormholeResidency])
 
@@ -79,9 +84,9 @@ class WormholeResidency(db: DatabaseOps) {
     val scores = killmails.flatMap(analyse).groupBy(_.corporationID).mapValues(_.map(rm => rm.modifier * rm.relevancy).sum).toList.sortBy(0-_._2)
     val affiliation = new EVEAPI().eve.CharacterAffiliation(scores.map(_._1.toString)).sync()
     if (scores.nonEmpty) {
-      val namelookup = affiliation.get.result.map(r => (r.characterID.toLong, r.characterName)).toMap
+      //val namelookup = affiliation.get.result.map(r => (r.characterID.toLong, r.characterName)).toMap
       scores.foreach { score =>
-        println("%s scored %f".format(namelookup.getOrElse(score._1, "Unknown"), score._2))
+        //println("%s scored %f".format(namelookup.getOrElse(score._1, "Unknown"), score._2))
       }
     }
   }
@@ -93,7 +98,7 @@ class WormholeResidency(db: DatabaseOps) {
       .solarSystemID(systemID)
       .start(DateTime.now().minusDays(90))
       .end(DateTime.now())
-    val res = req.page(page).build(global).sync().get
+    val res = req.page(page).build(global).sync(60 seconds).get
     if (res.size==200) {
       res ++ fetchKms(systemID, page+1)
     } else {

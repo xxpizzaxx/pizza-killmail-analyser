@@ -49,4 +49,12 @@ class DatabaseOps(db: JdbcBackend.Database) {
     res.map(_.head)
   }
 
+  val systemname2idcache: Cache[Int] = LruCache()
+  def getSystemID(name: String): Future[Int] = systemname2idcache(name) {
+    println(name)
+    val query = sql"select solarSystemID from mapSolarSystems where solarSystemName = $name".as[(Int)]
+    val res = db.run(query)
+    res.map(_.head)
+  }
+
 }
