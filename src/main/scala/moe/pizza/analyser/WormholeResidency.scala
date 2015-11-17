@@ -91,6 +91,25 @@ class WormholeResidency(db: DatabaseOps) {
     }
   }
 
+  case class ResidencyResult(corporationID: Long, corporationName: String, residencyScore: Double)
+
+  def analyseAndGenerateResults(systemID: Long): Seq[ResidencyResult] = {
+    val killmails = fetchKms(systemID)
+    val scores = killmails.flatMap(analyse).groupBy(_.corporationID).mapValues(_.map(rm => rm.modifier * rm.relevancy).sum).toList.sortBy(0-_._2)
+    val affiliation = new EVEAPI().eve.CharacterAffiliation(scores.map(_._1.toString)).sync()
+    if (scores.nonEmpty) {
+      val namelookup = affiliation.get.result.map(r => (r.characterID.toLong, r.characterName)).toMap
+      val res = scores.map {
+        score => ResidencyResult(score._1, namelookup.getOrElse(score._1, "Unknown"), score._2)
+      }
+      res
+    }
+    else {
+      Nil
+    }
+
+  }
+
   def fetchKms(systemID: Long, page: Int = 1): List[Killmail] = {
     import scala.concurrent.ExecutionContext.Implicits.global
 
