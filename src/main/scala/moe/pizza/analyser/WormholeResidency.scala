@@ -10,6 +10,7 @@ import org.joda.time.{Days, DateTime}
 import org.joda.time.format.DateTimeFormatterBuilder
 import org.slf4j.LoggerFactory
 import moe.pizza.sdeapi._
+import moe.pizza.analyser.WormholeResidency._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
