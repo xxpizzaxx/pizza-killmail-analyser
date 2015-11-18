@@ -2,15 +2,13 @@ name := "pizza-killmail-analyser"
 
 organization := "moe.pizza"
 
-version := "0.2"
-
 scalaVersion := "2.11.7"
 
 
 resolvers += Resolver.jcenterRepo
 
 libraryDependencies ++= Seq(
-  "moe.pizza" %% "eveapi" % "0.20",
+  "moe.pizza" %% "eveapi" % "0.22",
   "io.spray" %% "spray-caching" % "1.3.3"
 )
 
