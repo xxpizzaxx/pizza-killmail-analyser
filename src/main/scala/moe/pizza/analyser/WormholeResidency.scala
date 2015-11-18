@@ -119,7 +119,7 @@ class WormholeResidency(db: DatabaseOps) {
       .solarSystemID(systemID)
       .start(DateTime.now().minusDays(90))
       .end(DateTime.now())
-    val res = req.page(page).build(global).sync(60 seconds).get
+    val res = req.page(page).build().sync(60 seconds).get
     if (res.size==200) {
       res ++ fetchKms(systemID, page+1)
     } else {
