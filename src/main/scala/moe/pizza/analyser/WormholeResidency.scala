@@ -22,6 +22,9 @@ import scala.collection.mutable
 
 object WormholeResidency {
   case class ResidencyModifier(corporationID: Long, modifier: Double, relevancy: Double)
+
+  case class ResidencyResult(corporationID: Long, corporationName: String, residencyScore: Double)
+
   val datetimeformat = new DateTimeFormatterBuilder()
     .appendYear(4,4).appendLiteral("-").appendMonthOfYear(2).appendLiteral("-").appendDayOfMonth(2).appendLiteral(" ")
     .appendHourOfDay(2).appendLiteral(":").appendMinuteOfHour(2).appendLiteral(":").appendSecondOfMinute(2).toFormatter
@@ -90,8 +93,6 @@ class WormholeResidency(db: DatabaseOps) {
       }
     }
   }
-
-  case class ResidencyResult(corporationID: Long, corporationName: String, residencyScore: Double)
 
   def analyseAndGenerateResults(systemID: Long): Seq[ResidencyResult] = {
     val killmails = fetchKms(systemID)
