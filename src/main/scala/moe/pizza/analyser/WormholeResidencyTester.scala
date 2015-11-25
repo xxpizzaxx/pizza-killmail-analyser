@@ -2610,12 +2610,18 @@ object WormholeResidencyTester extends App {
   import moe.pizza.sdeapi.SyncableFuture
   val db = new DatabaseOps(Database.forURL("jdbc:mysql://localhost:3306/sde", "sde", "sde", driver = "com.mysql.jdbc.Driver"))
   val wr = new WormholeResidency(db)
-  wormholes.split("\n").par.foreach{ w =>
+  val r = wormholes.split("\n").par.map{ w =>
     println(w)
     try {
       val id = db.getSystemID(w).sync()
-      wr.backfill(id)
+      id match {
+        case Some(i) => wr.backfill(i)
+      }
+    } catch {
+      case e: java.lang.UnsupportedOperationException => println("database barfed on %s".format(w))
     }
   }
+  r
+  println("Completed with %d zkillboard queries".format(WormholeResidency.requests))
 
 }

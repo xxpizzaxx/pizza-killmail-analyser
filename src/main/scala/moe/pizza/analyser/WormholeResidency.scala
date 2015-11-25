@@ -1,6 +1,7 @@
 package moe.pizza.analyser
 
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 import moe.pizza.analyser.WormholeResidency.ResidencyModifier
 import moe.pizza.eveapi.EVEAPI
@@ -21,6 +22,8 @@ import scala.collection.mutable
  */
 
 object WormholeResidency {
+  val requests = new AtomicInteger(0)
+
   case class ResidencyModifier(corporationID: Long, modifier: Double, relevancy: Double)
   val datetimeformat = new DateTimeFormatterBuilder()
     .appendYear(4,4).appendLiteral("-").appendMonthOfYear(2).appendLiteral("-").appendDayOfMonth(2).appendLiteral(" ")
@@ -99,6 +102,7 @@ class WormholeResidency(db: DatabaseOps) {
       .start(DateTime.now().minusDays(90))
       .end(DateTime.now())
     val res = req.page(page).build(global).sync(60 seconds).get
+    WormholeResidency.requests.incrementAndGet()
     if (res.size==200) {
       res ++ fetchKms(systemID, page+1)
     } else {

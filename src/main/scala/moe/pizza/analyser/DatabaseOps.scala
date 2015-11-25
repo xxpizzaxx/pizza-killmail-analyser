@@ -16,18 +16,16 @@ import scala.concurrent.Future
 class DatabaseOps(db: JdbcBackend.Database) {
 
 
-  val typeidcache: Cache[Int] = LruCache()
-  def getTypeID(name: String): Future[Int] = typeidcache(name) {
+  val typeidcache: Cache[Option[Int]] = LruCache()
+  def getTypeID(name: String): Future[Option[Int]] = typeidcache(name) {
     val r = Tables.Invtypes.filter(_.typename === name).result.run(db)
-    val r2 = r.map(_.headOption.map(_.typeid))
-    r2.map(_.get)
+    r.map(_.headOption.map(_.typeid))
   }
 
-  val invtypescache: Cache[Tables.Invtypes#TableElementType] = LruCache()
-  def getType(id: Int): Future[Tables.Invtypes#TableElementType] = invtypescache(id) {
+  val invtypescache: Cache[Option[Tables.Invtypes#TableElementType]] = LruCache()
+  def getType(id: Int): Future[Option[Tables.Invtypes#TableElementType]] = invtypescache(id) {
     val r = Tables.Invtypes.filter(_.typeid === id).result.run(db)
-    val r2 = r.map(_.head)
-    r2
+    r.map(_.headOption)
   }
 
   val invtypesbymarketgroupcache: Cache[Seq[Tables.Invtypes#TableElementType]] = LruCache()
@@ -35,26 +33,25 @@ class DatabaseOps(db: JdbcBackend.Database) {
     Tables.Invtypes.filter(_.marketgroupid === id.toLong).result.run(db)
   }
 
-  val typenamecache: Cache[String] = LruCache()
-  def getTypeName(id: Long): Future[String] = typenamecache(id) {
+  val typenamecache: Cache[Option[String]] = LruCache()
+  def getTypeName(id: Long): Future[Option[String]] = typenamecache(id) {
     val query = sql"select typeName from invTypes where typeID = $id".as[(String)]
     val res = db.run(query)
-    res.map(_.head)
+    res.map(_.headOption)
   }
 
-  val systemid2namecache: Cache[String] = LruCache()
-  def getSystemName(id: Int): Future[String] = systemid2namecache(id) {
+  val systemid2namecache: Cache[Option[String]] = LruCache()
+  def getSystemName(id: Int): Future[Option[String]] = systemid2namecache(id) {
     val query = sql"select solarSystemName from mapSolarSystems where solarsystemid = $id".as[(String)]
     val res = db.run(query)
-    res.map(_.head)
+    res.map(_.headOption)
   }
 
-  val systemname2idcache: Cache[Int] = LruCache()
-  def getSystemID(name: String): Future[Int] = systemname2idcache(name) {
-    println(name)
+  val systemname2idcache: Cache[Option[Int]] = LruCache()
+  def getSystemID(name: String): Future[Option[Int]] = systemname2idcache(name) {
     val query = sql"select solarSystemID from mapSolarSystems where solarSystemName = $name".as[(Int)]
     val res = db.run(query)
-    res.map(_.head)
+    res.map(_.headOption)
   }
 
 }

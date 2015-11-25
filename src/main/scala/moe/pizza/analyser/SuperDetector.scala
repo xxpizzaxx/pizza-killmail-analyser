@@ -16,7 +16,12 @@ class SuperDetector(url: String, db: DatabaseOps) {
   val titans: Set[String] = Set("Ragnarok", "Erebus", "Avatar", "Leviathan")
   val combined = supers ++ titans
 
-  val targets = combined.map(name => (db.getTypeID(name).sync(), name)).toMap
+  val targets = combined.flatMap( name =>
+    db.getTypeID(name).sync() match {
+      case Some(i) => Some((i, name))
+      case None => None
+    }
+  ).toMap
 
   val client = WebsocketFeed.createClient(url, { kill: Killmail =>
 
