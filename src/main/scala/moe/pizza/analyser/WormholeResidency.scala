@@ -11,6 +11,7 @@ import org.joda.time.{Days, DateTime}
 import org.joda.time.format.DateTimeFormatterBuilder
 import org.slf4j.LoggerFactory
 import moe.pizza.sdeapi._
+import moe.pizza.analyser.WormholeResidency._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -25,6 +26,9 @@ object WormholeResidency {
   val requests = new AtomicInteger(0)
 
   case class ResidencyModifier(corporationID: Long, modifier: Double, relevancy: Double)
+
+  case class ResidencyResult(corporationID: Long, corporationName: String, residencyScore: Double)
+
   val datetimeformat = new DateTimeFormatterBuilder()
     .appendYear(4,4).appendLiteral("-").appendMonthOfYear(2).appendLiteral("-").appendDayOfMonth(2).appendLiteral(" ")
     .appendHourOfDay(2).appendLiteral(":").appendMinuteOfHour(2).appendLiteral(":").appendSecondOfMinute(2).toFormatter
@@ -94,6 +98,23 @@ class WormholeResidency(db: DatabaseOps) {
     }
   }
 
+  def analyseAndGenerateResults(systemID: Long): Seq[ResidencyResult] = {
+    val killmails = fetchKms(systemID)
+    val scores = killmails.flatMap(analyse).groupBy(_.corporationID).mapValues(_.map(rm => rm.modifier * rm.relevancy).sum).toList.sortBy(0-_._2)
+    val affiliation = new EVEAPI().eve.CharacterAffiliation(scores.map(_._1.toString)).sync()
+    if (scores.nonEmpty) {
+      val namelookup = affiliation.get.result.map(r => (r.characterID.toLong, r.characterName)).toMap
+      val res = scores.map {
+        score => ResidencyResult(score._1, namelookup.getOrElse(score._1, "Unknown"), score._2)
+      }
+      res
+    }
+    else {
+      Nil
+    }
+
+  }
+
   def fetchKms(systemID: Long, page: Int = 1): List[Killmail] = {
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -101,7 +122,7 @@ class WormholeResidency(db: DatabaseOps) {
       .solarSystemID(systemID)
       .start(DateTime.now().minusDays(90))
       .end(DateTime.now())
-    val res = req.page(page).build(global).sync(60 seconds).get
+    val res = req.page(page).build().sync(60 seconds).get
     WormholeResidency.requests.incrementAndGet()
     if (res.size==200) {
       res ++ fetchKms(systemID, page+1)
