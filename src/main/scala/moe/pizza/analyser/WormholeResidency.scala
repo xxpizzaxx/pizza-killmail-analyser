@@ -17,6 +17,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.collection.mutable
 
+import scala.annotation.tailrec
+
 
 /**
  * Created by Andi on 06/11/2015.
@@ -115,7 +117,8 @@ class WormholeResidency(db: DatabaseOps) {
 
   }
 
-  def fetchKms(systemID: Long, page: Int = 1): List[Killmail] = {
+  @tailrec
+  final def fetchKms(systemID: Long, page: Int = 1, tail: List[Killmail] = Nil): List[Killmail] = {
     import scala.concurrent.ExecutionContext.Implicits.global
 
      val req = new ZKBRequest(useragent = "pizza-wormhole-intel")
@@ -125,9 +128,9 @@ class WormholeResidency(db: DatabaseOps) {
     val res = req.page(page).build().sync(60 seconds).get
     WormholeResidency.requests.incrementAndGet()
     if (res.size==200) {
-      res ++ fetchKms(systemID, page+1)
+      fetchKms(systemID, page+1, res)
     } else {
-      res
+      res ++ tail
     }
   }
 
