@@ -2616,6 +2616,7 @@ object WormholeResidencyTester extends App {
       val id = db.getSystemID(w).sync()
       id match {
         case Some(i) => wr.backfill(i)
+        case None => println("Unable to find the system %s".format(w))
       }
     } catch {
       case e: java.lang.UnsupportedOperationException => println("database barfed on %s".format(w))
