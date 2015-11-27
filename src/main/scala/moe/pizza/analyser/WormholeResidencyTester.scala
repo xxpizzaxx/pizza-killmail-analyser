@@ -2622,7 +2622,6 @@ object WormholeResidencyTester extends App {
       case e: java.lang.UnsupportedOperationException => println("database barfed on %s".format(w))
     }
   }
-  r
   println("Completed with %d zkillboard queries".format(WormholeResidency.requests))
 
 }

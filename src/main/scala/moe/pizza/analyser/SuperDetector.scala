@@ -32,7 +32,7 @@ class SuperDetector(url: String, db: DatabaseOps) {
       val character = kill.victim.characterName
       val lostshiptype = db.getTypeName(kill.victim.shipTypeID.toInt).sync()
       val location = db.getSystemName(kill.solarSystemID.toInt).sync()
-      logger.info(s"$character lost a $lostshiptype in $location".format(character, lostshiptype, location))
+      logger.info(s"$character lost a $lostshiptype in $location")
     }
     kill.attackers.foreach { attacker =>
       if(targets.keySet contains attacker.shipTypeID.toInt) {
